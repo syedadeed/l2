@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -29,11 +29,10 @@ func (tu *tempUser) WebAuthnDisplayName() string                { return tu.name
 func (tu *tempUser) WebAuthnCredentials() []webauthn.Credential { return tu.creds }
 
 func newTempUser() *tempUser {
-	id := make([]byte, 64)
-	rand.Read(id)
+	id := uuid.New()
 	return &tempUser{
-		id:       id,
-		userName: base64.RawURLEncoding.EncodeToString(id),
+		id:       id[:],
+		userName: base64.RawURLEncoding.EncodeToString(id[:]),
 		name:     "user",
 		creds:    nil,
 	}
@@ -77,7 +76,7 @@ func (ah *AuthHandler) SignupStart(w http.ResponseWriter, r *http.Request) {
 
 	sessionVal := base64.RawURLEncoding.EncodeToString(sessionBytes)
 
-	if err := ah.rdb.Set(r.Context(), sessionVal, registrationSessionType, time.Until(session.Expires)).Err(); err != nil{
+	if err := ah.rdb.Set(r.Context(), sessionVal, registrationSessionType, time.Until(session.Expires)).Err(); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -104,11 +103,11 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionType, err := ah.rdb.Get(r.Context(), cookie.Value).Result()
-	if err == redis.Nil || sessionType != registrationSessionType{
+	if err == redis.Nil || sessionType != registrationSessionType {
 		http.SetCookie(w, &http.Cookie{Name: passkeyRegCookieName, MaxAge: -1})
 		http.Error(w, "Invalid session", http.StatusUnauthorized)
 		return
-	}else if err != nil{
+	} else if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
