@@ -11,7 +11,15 @@ import (
 
 	"l2/db/repository"
 	"l2/handlers"
+	"l2/middleware"
 )
+
+func chainMiddlewares(h http.Handler, middlewares ...func(http.Handler) http.Handler) http.Handler {
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		h = middlewares[i](h)
+	}
+	return h
+}
 
 func main() {
 	rdb := redis.NewClient(&redis.Options{
@@ -60,8 +68,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /signup/start", authHandler.SignupStart)
-	mux.HandleFunc("POST /signup/finish", authHandler.SignupFinish)
+	mux.Handle("POST /signup/start/", http.HandlerFunc(authHandler.SignupStart))
+	mux.Handle("POST /signup/finish/", http.HandlerFunc(authHandler.SignupFinish))
 
-	http.ListenAndServe(":8080", mux)
+	http.ListenAndServe(":8080", chainMiddlewares(mux, middleware.Logging))
 }
