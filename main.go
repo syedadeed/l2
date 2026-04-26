@@ -62,7 +62,6 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /signup/start", authHandler.SignupStart)
 	mux.HandleFunc("POST /signup/finish", authHandler.SignupFinish)
-	mux.Handle("GET /", http.FileServer(http.Dir(".")))
 
 	http.ListenAndServe(":8080", mux)
 }
