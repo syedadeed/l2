@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"l2/db/repository"
 	"l2/handlers"
 )
 
@@ -19,6 +21,15 @@ func main() {
 	})
 	defer rdb.Close()
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		panic(err)
+	}
+
+	pool, err := pgxpool.New(context.Background(), "postgres://postgres:pg@localhost:5432/postgres")
+	if err != nil {
+		panic(err)
+	}
+	defer pool.Close()
+	if err := pool.Ping(context.Background()); err != nil {
 		panic(err)
 	}
 
@@ -43,7 +54,7 @@ func main() {
 		panic(err)
 	}
 
-	authHandler, err := handlers.NewAuthHandler(w, rdb)
+	authHandler, err := handlers.NewAuthHandler(w, pool, repository.New(pool), rdb)
 	if err != nil {
 		panic(err)
 	}
@@ -51,6 +62,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /signup/start", authHandler.SignupStart)
 	mux.HandleFunc("POST /signup/finish", authHandler.SignupFinish)
+	mux.Handle("GET /", http.FileServer(http.Dir(".")))
 
 	http.ListenAndServe(":8080", mux)
 }

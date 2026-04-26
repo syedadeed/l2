@@ -10,7 +10,10 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+
+	"l2/db/repository"
 )
 
 const registrationSessionType = "registration_session"
@@ -39,19 +42,21 @@ func newTempUser() *tempUser {
 }
 
 type AuthHandler struct {
-	wa  *webauthn.WebAuthn
-	rdb *redis.Client
+	webAuthn *webauthn.WebAuthn
+	pool     *pgxpool.Pool
+	queries  *repository.Queries
+	cache    *redis.Client
 }
 
-func NewAuthHandler(wa *webauthn.WebAuthn, rdb *redis.Client) (*AuthHandler, error) {
-	if wa == nil || rdb == nil {
-		return nil, errors.New("webauthn instance cannot be nil")
+func NewAuthHandler(webAuthn *webauthn.WebAuthn, pool *pgxpool.Pool, queries *repository.Queries, cache *redis.Client) (*AuthHandler, error) {
+	if webAuthn == nil || pool == nil || queries == nil || cache == nil {
+		return nil, errors.New("All fields must be non nil values")
 	}
-	return &AuthHandler{wa: wa, rdb: rdb}, nil
+	return &AuthHandler{webAuthn: webAuthn, pool: pool, queries: queries, cache: cache}, nil
 }
 
 func (ah *AuthHandler) SignupStart(w http.ResponseWriter, r *http.Request) {
-	options, session, err := ah.wa.BeginMediatedRegistration(
+	options, session, err := ah.webAuthn.BeginMediatedRegistration(
 		newTempUser(),
 		protocol.MediationDefault,
 		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
@@ -76,7 +81,7 @@ func (ah *AuthHandler) SignupStart(w http.ResponseWriter, r *http.Request) {
 
 	sessionVal := base64.RawURLEncoding.EncodeToString(sessionBytes)
 
-	if err := ah.rdb.Set(r.Context(), sessionVal, registrationSessionType, time.Until(session.Expires)).Err(); err != nil {
+	if err := ah.cache.Set(r.Context(), sessionVal, registrationSessionType, time.Until(session.Expires)).Err(); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -102,9 +107,9 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionType, err := ah.rdb.Get(r.Context(), cookie.Value).Result()
+	sessionType, err := ah.cache.Get(r.Context(), cookie.Value).Result()
 	if err == redis.Nil || sessionType != registrationSessionType {
-		http.SetCookie(w, &http.Cookie{Name: passkeyRegCookieName, MaxAge: -1})
+		http.SetCookie(w, &http.Cookie{Name: passkeyRegCookieName, MaxAge: -1, Path: "/"})
 		http.Error(w, "Invalid session", http.StatusUnauthorized)
 		return
 	} else if err != nil {
@@ -124,7 +129,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cred, err := ah.wa.FinishRegistration(
+	cred, err := ah.webAuthn.FinishRegistration(
 		&tempUser{
 			id:       session.UserID,
 			userName: base64.RawURLEncoding.EncodeToString(session.UserID),
@@ -139,10 +144,44 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = cred //TODO save the user in the DB
+	tx, err := ah.pool.Begin(r.Context())
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	qtx := ah.queries.WithTx(tx)
+
+	err = qtx.AddUser(r.Context(), repository.AddUserParams{
+		ID:        uuid.UUID(session.UserID),
+		FirstName: "user",
+		LastName:  "user",
+		Username:  base64.RawURLEncoding.EncodeToString(session.UserID),
+	})
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = qtx.AddCredential(r.Context(), repository.AddCredentialParams{
+		ID:         cred.ID,
+		UserID:     uuid.UUID(session.UserID),
+		Credential: *cred,
+	})
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	//TODO issue a JWT
 
-	http.SetCookie(w, &http.Cookie{Name: passkeyRegCookieName, MaxAge: -1})
-	ah.rdb.Del(r.Context(), cookie.Value)
+	http.SetCookie(w, &http.Cookie{Name: passkeyRegCookieName, MaxAge: -1, Path: "/"})
+	ah.cache.Del(r.Context(), cookie.Value)
 	w.WriteHeader(http.StatusOK)
 }
