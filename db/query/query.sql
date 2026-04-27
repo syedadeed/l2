@@ -15,3 +15,6 @@ SELECT * FROM users WHERE id = $1;
 
 -- name: UpdateCredential :exec
 UPDATE passkey_credentials SET credential = $1 WHERE id = $2;
+
+-- name: AddRefreshToken :exec
+INSERT INTO sessions(id, user_id, expires_at) VALUES(sqlc.arg(jwt_id), sqlc.arg(user_id), sqlc.arg(expires_at));

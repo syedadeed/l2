@@ -7,6 +7,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
@@ -24,6 +25,21 @@ type AddCredentialParams struct {
 
 func (q *Queries) AddCredential(ctx context.Context, arg AddCredentialParams) error {
 	_, err := q.db.Exec(ctx, addCredential, arg.ID, arg.UserID, arg.Credential)
+	return err
+}
+
+const addRefreshToken = `-- name: AddRefreshToken :exec
+INSERT INTO sessions(id, user_id, expires_at) VALUES($1, $2, $3)
+`
+
+type AddRefreshTokenParams struct {
+	JwtID     uuid.UUID `json:"jwt_id"`
+	UserID    uuid.UUID `json:"user_id"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) AddRefreshToken(ctx context.Context, arg AddRefreshTokenParams) error {
+	_, err := q.db.Exec(ctx, addRefreshToken, arg.JwtID, arg.UserID, arg.ExpiresAt)
 	return err
 }
 

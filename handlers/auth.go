@@ -14,10 +14,13 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"l2/db/repository"
+	"l2/utils"
 )
 
 const passkeySignupCookieName = "passkey_signup_session"
 const passkeySigninCookieName = "passkey_signin_session"
+const accessTokenCookieName = "access_token"
+const refreshTokenCookieName = "refresh_token"
 
 type tempUser struct {
 	id       []byte
@@ -173,8 +176,40 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//TODO issue a JWT
+	accessTokenString, refreshTokenString, refreshTokenId, refreshTokenExpiresAt, accessTokenExpiresAt, err := utils.GenerateTokenPair(uuid.UUID(session.UserID).String())
+	if err != nil{
+		http.Error(w, "Session creation failed", http.StatusInternalServerError)
+		return
+	}
 
+	err = ah.queries.AddRefreshToken(r.Context(), repository.AddRefreshTokenParams{
+		JwtID: refreshTokenId,
+		UserID: uuid.UUID(session.UserID),
+		ExpiresAt: refreshTokenExpiresAt,
+	})
+	if err != nil{
+		http.Error(w, "Session creation failed", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     accessTokenCookieName,
+		Value:    accessTokenString,
+		Path:     "/",
+		MaxAge:   int(time.Until(accessTokenExpiresAt).Seconds()),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     refreshTokenCookieName,
+		Value:    refreshTokenString,
+		Path:     "/",
+		MaxAge:   int(time.Until(refreshTokenExpiresAt).Seconds()),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -286,8 +321,39 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//TODO issue a JWT
-	_ = validatedUser
+	accessTokenString, refreshTokenString, refreshTokenId, refreshTokenExpiresAt, accessTokenExpiresAt, err := utils.GenerateTokenPair(uuid.UUID(validatedUser.WebAuthnID()).String())
+	if err != nil{
+		http.Error(w, "Session creation failed", http.StatusInternalServerError)
+		return
+	}
 
+	err = ah.queries.AddRefreshToken(r.Context(), repository.AddRefreshTokenParams{
+		JwtID: refreshTokenId,
+		UserID: uuid.UUID(validatedUser.WebAuthnID()),
+		ExpiresAt: refreshTokenExpiresAt,
+	})
+	if err != nil{
+		http.Error(w, "Session creation failed", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     accessTokenCookieName,
+		Value:    accessTokenString,
+		Path:     "/",
+		MaxAge:   int(time.Until(accessTokenExpiresAt).Seconds()),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     refreshTokenCookieName,
+		Value:    refreshTokenString,
+		Path:     "/",
+		MaxAge:   int(time.Until(refreshTokenExpiresAt).Seconds()),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
 	w.WriteHeader(http.StatusOK)
 }
