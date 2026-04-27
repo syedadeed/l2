@@ -73,5 +73,15 @@ func main() {
 	mux.Handle("POST /signin/start/", http.HandlerFunc(authHandler.SigninStart))
 	mux.Handle("POST /signin/finish/", http.HandlerFunc(authHandler.SigninFinish))
 
-	http.ListenAndServe(":8080", chainMiddlewares(mux, middleware.Logging))
+	server := &http.Server{
+		Addr:              ":8080",
+		Handler:           chainMiddlewares(mux, middleware.Logging),
+		ReadTimeout:       5 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	if err := server.ListenAndServe(); err != nil {
+		panic(err)
+	}
 }

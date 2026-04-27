@@ -1,5 +1,4 @@
-middleware => cors, csrf, auth
+middleware => cors, csrf, auth, request body size limit
 cleanup db code and main.go
 jwt
 cookie permissions csrf protection
-HTTP server timeouts, request body size limit
