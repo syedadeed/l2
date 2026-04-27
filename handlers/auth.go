@@ -16,8 +16,6 @@ import (
 	"l2/db/repository"
 )
 
-const signupSessionType = "signup_session"
-const signinSessionType = "signin_session"
 const passkeySignupCookieName = "passkey_signup_session"
 const passkeySigninCookieName = "passkey_signin_session"
 
@@ -81,16 +79,16 @@ func (ah *AuthHandler) SignupStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionVal := base64.RawURLEncoding.EncodeToString(sessionBytes)
+	sessionID := uuid.New().String()
 
-	if err := ah.cache.Set(r.Context(), sessionVal, signupSessionType, time.Until(session.Expires)).Err(); err != nil {
+	if err := ah.cache.Set(r.Context(), sessionID, sessionBytes, time.Until(session.Expires)).Err(); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     passkeySignupCookieName,
-		Value:    sessionVal,
+		Value:    sessionID,
 		Path:     "/",
 		MaxAge:   int(time.Until(session.Expires).Seconds()),
 		HttpOnly: true,
@@ -108,25 +106,19 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing session cookie", http.StatusUnauthorized)
 		return
 	}
+	http.SetCookie(w, &http.Cookie{Name: passkeySignupCookieName, MaxAge: -1, Path: "/"})
 
-	sessionType, err := ah.cache.Get(r.Context(), cookie.Value).Result()
-	if err == redis.Nil || sessionType != signupSessionType {
-		http.SetCookie(w, &http.Cookie{Name: passkeySignupCookieName, MaxAge: -1, Path: "/"})
-		http.Error(w, "Invalid session", http.StatusUnauthorized)
+	sessionBytes, err := ah.cache.GetDel(r.Context(), cookie.Value).Result()
+	if err == redis.Nil {
+		http.Error(w, "Registration failed", http.StatusUnauthorized)
 		return
-	} else if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	sessionBytes, err := base64.RawURLEncoding.DecodeString(cookie.Value)
-	if err != nil {
+	}else if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	var session webauthn.SessionData
-	if err := json.Unmarshal(sessionBytes, &session); err != nil {
+	if err := json.Unmarshal([]byte(sessionBytes), &session); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -182,9 +174,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//TODO issue a JWT
-
-	http.SetCookie(w, &http.Cookie{Name: passkeySignupCookieName, MaxAge: -1, Path: "/"})
-	ah.cache.Del(r.Context(), cookie.Value)
+	
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -207,16 +197,16 @@ func (ah *AuthHandler) SigninStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionVal := base64.RawURLEncoding.EncodeToString(sessionBytes)
+	sessionID := uuid.New().String()
 
-	if err := ah.cache.Set(r.Context(), sessionVal, signinSessionType, time.Until(session.Expires)).Err(); err != nil {
+	if err := ah.cache.Set(r.Context(), sessionID, sessionBytes, time.Until(session.Expires)).Err(); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     passkeySigninCookieName,
-		Value:    sessionVal,
+		Value:    sessionID,
 		Path:     "/",
 		MaxAge:   int(time.Until(session.Expires).Seconds()),
 		HttpOnly: true,
@@ -234,25 +224,19 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing session cookie", http.StatusUnauthorized)
 		return
 	}
+	http.SetCookie(w, &http.Cookie{Name: passkeySigninCookieName, MaxAge: -1, Path: "/"})
 
-	sessionType, err := ah.cache.Get(r.Context(), cookie.Value).Result()
-	if err == redis.Nil || sessionType != signinSessionType {
-		http.SetCookie(w, &http.Cookie{Name: passkeySigninCookieName, MaxAge: -1, Path: "/"})
-		http.Error(w, "Invalid session", http.StatusUnauthorized)
+	sessionBytes, err := ah.cache.GetDel(r.Context(), cookie.Value).Result()
+	if err == redis.Nil{
+		http.Error(w, "Login failed", http.StatusUnauthorized)
 		return
 	} else if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	sessionBytes, err := base64.RawURLEncoding.DecodeString(cookie.Value)
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
 	var session webauthn.SessionData
-	if err := json.Unmarshal(sessionBytes, &session); err != nil {
+	if err := json.Unmarshal([]byte(sessionBytes), &session); err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -305,7 +289,5 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 	//TODO issue a JWT
 	_ = validatedUser
 
-	http.SetCookie(w, &http.Cookie{Name: passkeySigninCookieName, MaxAge: -1, Path: "/"})
-	ah.cache.Del(r.Context(), cookie.Value)
 	w.WriteHeader(http.StatusOK)
 }
