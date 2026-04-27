@@ -47,3 +47,73 @@ func (q *Queries) AddUser(ctx context.Context, arg AddUserParams) error {
 	)
 	return err
 }
+
+const getCredentialsByUser = `-- name: GetCredentialsByUser :many
+SELECT credential FROM passkey_credentials WHERE user_id = $1
+`
+
+func (q *Queries) GetCredentialsByUser(ctx context.Context, userID uuid.UUID) ([]webauthn.Credential, error) {
+	rows, err := q.db.Query(ctx, getCredentialsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []webauthn.Credential
+	for rows.Next() {
+		var credential webauthn.Credential
+		if err := rows.Scan(&credential); err != nil {
+			return nil, err
+		}
+		items = append(items, credential)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUser = `-- name: GetUser :one
+SELECT id, first_name, last_name, username FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUser, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Username,
+	)
+	return i, err
+}
+
+const updateCredential = `-- name: UpdateCredential :exec
+UPDATE passkey_credentials SET credential = $1 WHERE id = $2
+`
+
+type UpdateCredentialParams struct {
+	Credential webauthn.Credential `json:"credential"`
+	ID         []byte              `json:"id"`
+}
+
+func (q *Queries) UpdateCredential(ctx context.Context, arg UpdateCredentialParams) error {
+	_, err := q.db.Exec(ctx, updateCredential, arg.Credential, arg.ID)
+	return err
+}
+
+const verifyCredentialOwner = `-- name: VerifyCredentialOwner :one
+SELECT EXISTS(SELECT 1 FROM passkey_credentials WHERE id = $1 AND user_id = $2)
+`
+
+type VerifyCredentialOwnerParams struct {
+	CredID []byte    `json:"cred_id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) VerifyCredentialOwner(ctx context.Context, arg VerifyCredentialOwnerParams) (bool, error) {
+	row := q.db.QueryRow(ctx, verifyCredentialOwner, arg.CredID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}

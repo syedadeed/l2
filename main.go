@@ -70,6 +70,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("POST /signup/start/", http.HandlerFunc(authHandler.SignupStart))
 	mux.Handle("POST /signup/finish/", http.HandlerFunc(authHandler.SignupFinish))
+	mux.Handle("POST /signin/start/", http.HandlerFunc(authHandler.SigninStart))
+	mux.Handle("POST /signin/finish/", http.HandlerFunc(authHandler.SigninFinish))
 
 	http.ListenAndServe(":8080", chainMiddlewares(mux, middleware.Logging))
 }

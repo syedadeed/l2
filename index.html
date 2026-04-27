@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Passkey Test Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --border: #222;
+    --border-bright: #333;
+    --accent: #00ff88;
+    --accent-dim: rgba(0,255,136,0.08);
+    --accent-mid: rgba(0,255,136,0.18);
+    --err: #ff4455;
+    --err-dim: rgba(255,68,85,0.08);
+    --warn: #ffaa00;
+    --text: #e8e8e8;
+    --muted: #555;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  header {
+    margin-bottom: 2.5rem;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 2px 8px;
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    font-family: var(--sans);
+    font-weight: 300;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .card-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 0.85rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent-dim);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .btn:hover:not(:disabled)::before { opacity: 1; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn:active:not(:disabled) { transform: scale(0.995); }
+
+  .btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .btn-icon { font-size: 1rem; flex-shrink: 0; }
+
+  .btn.running {
+    border-color: var(--warn);
+    color: var(--warn);
+    pointer-events: none;
+  }
+
+  .btn.running::before { background: rgba(255,170,0,0.06); opacity: 1; }
+
+  .btn-row {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .btn-row .btn { flex: 1; }
+
+  /* Log */
+  .log-wrap {
+    background: #000;
+    border: 1px solid var(--border);
+    height: 260px;
+    overflow-y: auto;
+    padding: 1rem;
+    scroll-behavior: smooth;
+  }
+
+  .log-wrap::-webkit-scrollbar { width: 4px; }
+  .log-wrap::-webkit-scrollbar-track { background: transparent; }
+  .log-wrap::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  .log-entry {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1.6;
+    margin-bottom: 0.1rem;
+    animation: fadeIn 0.15s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-ts { color: var(--muted); flex-shrink: 0; user-select: none; }
+
+  .log-entry.info  .log-msg { color: var(--text); }
+  .log-entry.ok    .log-msg { color: var(--accent); }
+  .log-entry.err   .log-msg { color: var(--err); }
+  .log-entry.warn  .log-msg { color: var(--warn); }
+  .log-entry.data  .log-msg { color: #7eb8ff; font-size: 0.7rem; word-break: break-all; }
+
+  .log-prefix { flex-shrink: 0; }
+  .log-entry.info  .log-prefix { color: var(--muted); }
+  .log-entry.ok    .log-prefix { color: var(--accent); }
+  .log-entry.err   .log-prefix { color: var(--err); }
+  .log-entry.warn  .log-prefix { color: var(--warn); }
+  .log-entry.data  .log-prefix { color: #7eb8ff; }
+
+  .log-empty {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-style: italic;
+  }
+
+  /* Status indicator */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 1rem;
+    letter-spacing: 0.05em;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .dot.ok   { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .dot.err  { background: var(--err);    box-shadow: 0 0 6px var(--err); }
+  .dot.busy {
+    background: var(--warn);
+    animation: pulse 0.8s ease-in-out infinite alternate;
+  }
+
+  @keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }
+
+  .clear-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    transition: color 0.15s;
+  }
+  .clear-btn:hover { color: var(--text); }
+
+  /* Credential preview */
+  .cred-preview {
+    display: none;
+    margin-top: 1rem;
+    background: #000;
+    border: 1px solid var(--border);
+    padding: 1rem;
+  }
+  .cred-preview.visible { display: block; }
+  .cred-preview pre {
+    font-size: 0.68rem;
+    color: #7eb8ff;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.5;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+  .cred-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <header>
+    <div class="badge">dev / test bench</div>
+    <h1>Passkey <span>Test Bench</span></h1>
+    <p class="subtitle">WebAuthn signup + signin flow</p>
+  </header>
+
+  <div class="card">
+    <div class="card-label">Registration Flow</div>
+    <div class="btn-row">
+      <button class="btn" id="btnStart">
+        <span class="btn-icon">⬡</span>
+        <span>1. /signup/start</span>
+      </button>
+      <button class="btn" id="btnCreate" disabled>
+        <span class="btn-icon">◈</span>
+        <span>2. Create Passkey</span>
+      </button>
+      <button class="btn" id="btnFinish" disabled>
+        <span class="btn-icon">◉</span>
+        <span>3. /signup/finish</span>
+      </button>
+    </div>
+
+    <div class="cred-preview" id="credPreview">
+      <div class="cred-label">credential response (will be sent to finish)</div>
+      <pre id="credJson"></pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Sign-in Flow</div>
+    <div class="btn-row">
+      <button class="btn" id="btnSigninStart">
+        <span class="btn-icon">⬡</span>
+        <span>1. /signin/start</span>
+      </button>
+      <button class="btn" id="btnSigninGet" disabled>
+        <span class="btn-icon">◈</span>
+        <span>2. Get Passkey</span>
+      </button>
+      <button class="btn" id="btnSigninFinish" disabled>
+        <span class="btn-icon">◉</span>
+        <span>3. /signin/finish</span>
+      </button>
+    </div>
+
+    <div class="cred-preview" id="assertionPreview">
+      <div class="cred-label">assertion response (will be sent to finish)</div>
+      <pre id="assertionJson"></pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label" style="margin-bottom:0.75rem;">
+      Console Output
+      <button class="clear-btn" id="clearBtn">clear</button>
+    </div>
+    <div class="log-wrap" id="logWrap">
+      <div class="log-empty" id="logEmpty">Waiting for action…</div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText">idle</span>
+  </div>
+</div>
+
+<script>
+  const btnStart  = document.getElementById('btnStart');
+  const btnCreate = document.getElementById('btnCreate');
+  const btnFinish = document.getElementById('btnFinish');
+  const logWrap   = document.getElementById('logWrap');
+  const logEmpty  = document.getElementById('logEmpty');
+  const statusDot = document.getElementById('statusDot');
+  const statusTxt = document.getElementById('statusText');
+  const credPreview = document.getElementById('credPreview');
+  const credJson    = document.getElementById('credJson');
+  document.getElementById('clearBtn').addEventListener('click', clearLog);
+
+  let registrationOptions = null;
+  let credentialResponse  = null;
+
+  // ── Utilities ────────────────────────────────────────────────────────────
+
+  function ts() {
+    const d = new Date();
+    return d.toTimeString().slice(0,8) + '.' + String(d.getMilliseconds()).padStart(3,'0');
+  }
+
+  function log(msg, type = 'info') {
+    const prefixes = { info: '──', ok: '✓', err: '✗', warn: '△', data: '  ' };
+    logEmpty.style.display = 'none';
+    const el = document.createElement('div');
+    el.className = `log-entry ${type}`;
+    el.innerHTML = `<span class="log-ts">${ts()}</span><span class="log-prefix">${prefixes[type]}</span><span class="log-msg">${msg}</span>`;
+    logWrap.appendChild(el);
+    logWrap.scrollTop = logWrap.scrollHeight;
+  }
+
+  function clearLog() {
+    logWrap.innerHTML = '';
+    logEmpty.style.display = '';
+    logWrap.appendChild(logEmpty);
+    logEmpty.style.display = 'block';
+    setStatus('idle');
+  }
+
+  function setStatus(state, msg) {
+    statusDot.className = 'dot ' + (state === 'ok' ? 'ok' : state === 'err' ? 'err' : state === 'busy' ? 'busy' : '');
+    statusTxt.textContent = msg || state;
+  }
+
+  function setBusy(btn, label) {
+    btn.classList.add('running');
+    btn.querySelector('span:last-child').textContent = label;
+  }
+  function resetBtn(btn, label) {
+    btn.classList.remove('running');
+    btn.querySelector('span:last-child').textContent = label;
+  }
+
+  // ── base64url helpers ────────────────────────────────────────────────────
+
+  function b64urlToBuffer(b64url) {
+    const b64 = b64url.replace(/-/g,'+').replace(/_/g,'/');
+    const bin = atob(b64);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return buf.buffer;
+  }
+
+  function bufferToB64url(buf) {
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+
+  // Recursively decode base64url strings to ArrayBuffers for known WebAuthn fields
+  function preparePublicKeyOptions(opts) {
+    const pk = opts.publicKey;
+
+    pk.challenge = b64urlToBuffer(pk.challenge);
+
+    if (pk.user?.id)
+      pk.user.id = b64urlToBuffer(pk.user.id);
+
+    if (pk.excludeCredentials)
+      pk.excludeCredentials = pk.excludeCredentials.map(c => ({ ...c, id: b64urlToBuffer(c.id) }));
+
+    return opts;
+  }
+
+  // Encode credential for JSON transmission
+  function encodeCredential(cred) {
+    const obj = {
+      id:    cred.id,
+      type:  cred.type,
+      rawId: bufferToB64url(cred.rawId),
+      response: {
+        clientDataJSON:    bufferToB64url(cred.response.clientDataJSON),
+        attestationObject: bufferToB64url(cred.response.attestationObject),
+      },
+    };
+    if (cred.response.getTransports)
+      obj.response.transports = cred.response.getTransports();
+    if (cred.authenticatorAttachment)
+      obj.authenticatorAttachment = cred.authenticatorAttachment;
+    return obj;
+  }
+
+  // ── Step 1: /signup/start ────────────────────────────────────────────────
+
+  btnStart.addEventListener('click', async () => {
+    registrationOptions = null;
+    credentialResponse  = null;
+    credPreview.classList.remove('visible');
+    btnCreate.disabled = true;
+    btnFinish.disabled = true;
+
+    setBusy(btnStart, 'Requesting…');
+    setStatus('busy', 'calling /signup/start');
+    log('POST /signup/start');
+
+    try {
+      const res = await fetch('/signup/start', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      log(`HTTP ${res.status} ${res.statusText}`, res.ok ? 'ok' : 'err');
+
+      const cookieHint = document.cookie; // limited view due to HttpOnly
+      log(`response headers: Content-Type=${res.headers.get('Content-Type')}`, 'data');
+
+      if (!res.ok) {
+        const body = await res.text();
+        log('Error body: ' + body, 'err');
+        setStatus('err', 'start failed');
+        return;
+      }
+
+      const json = await res.json();
+      registrationOptions = json;
+
+      log('Received publicKeyCredentialCreationOptions', 'ok');
+      log('challenge: ' + json.publicKey?.challenge?.slice(0, 24) + '…', 'data');
+      log('rp.id: ' + json.publicKey?.rp?.id, 'data');
+      log('user.name: ' + json.publicKey?.user?.name, 'data');
+      log('timeout: ' + json.publicKey?.timeout + 'ms', 'data');
+      log('residentKey: ' + json.publicKey?.authenticatorSelection?.residentKey, 'data');
+
+      btnCreate.disabled = false;
+      setStatus('ok', 'start OK — ready to create passkey');
+    } catch(e) {
+      log('Fetch failed: ' + e.message, 'err');
+      log('Is the server running on localhost:8080?', 'warn');
+      setStatus('err', 'network error');
+    } finally {
+      resetBtn(btnStart, '1. /signup/start');
+    }
+  });
+
+  // ── Step 2: navigator.credentials.create() ───────────────────────────────
+
+  btnCreate.addEventListener('click', async () => {
+    if (!registrationOptions) { log('No options — run start first', 'err'); return; }
+
+    setBusy(btnCreate, 'Waiting for authenticator…');
+    setStatus('busy', 'waiting for authenticator');
+    log('Calling navigator.credentials.create()');
+    log('Interact with your authenticator (Touch ID, Face ID, security key…)', 'warn');
+
+    try {
+      const prepared = preparePublicKeyOptions(JSON.parse(JSON.stringify(registrationOptions)));
+      const cred = await navigator.credentials.create(prepared);
+
+      log('Credential created', 'ok');
+      log('id: ' + cred.id, 'data');
+      log('type: ' + cred.type, 'data');
+      log('authenticatorAttachment: ' + cred.authenticatorAttachment, 'data');
+      if (cred.response.getTransports)
+        log('transports: ' + cred.response.getTransports().join(', '), 'data');
+
+      credentialResponse = encodeCredential(cred);
+      credJson.textContent = JSON.stringify(credentialResponse, null, 2);
+      credPreview.classList.add('visible');
+
+      btnFinish.disabled = false;
+      setStatus('ok', 'credential ready — run finish');
+    } catch(e) {
+      if (e.name === 'NotAllowedError') {
+        log('Cancelled or timed out: ' + e.message, 'warn');
+        setStatus('warn', 'cancelled');
+      } else {
+        log(e.name + ': ' + e.message, 'err');
+        setStatus('err', 'credential creation failed');
+      }
+    } finally {
+      resetBtn(btnCreate, '2. Create Passkey');
+    }
+  });
+
+  // ── Step 3: /signup/finish ───────────────────────────────────────────────
+
+  btnFinish.addEventListener('click', async () => {
+    if (!credentialResponse) { log('No credential — create passkey first', 'err'); return; }
+
+    setBusy(btnFinish, 'Sending…');
+    setStatus('busy', 'calling /signup/finish');
+    log('POST /signup/finish');
+
+    try {
+      const res = await fetch('/signup/finish', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentialResponse),
+      });
+
+      log(`HTTP ${res.status} ${res.statusText}`, res.ok ? 'ok' : 'err');
+
+      if (res.ok) {
+        log('Registration complete ✓', 'ok');
+        log('Next: implement DB save + JWT issuance (TODO in your handler)', 'warn');
+        setStatus('ok', 'registration complete');
+        btnCreate.disabled = true;
+        btnFinish.disabled = true;
+        credPreview.classList.remove('visible');
+      } else {
+        const body = await res.text();
+        log('Error: ' + body, 'err');
+        setStatus('err', 'finish failed');
+      }
+    } catch(e) {
+      log('Fetch failed: ' + e.message, 'err');
+      setStatus('err', 'network error');
+    } finally {
+      resetBtn(btnFinish, '3. /signup/finish');
+    }
+  });
+  // ── Signin Step 1: /signin/start ─────────────────────────────────────────
+
+  let signinOptions      = null;
+  let assertionResponse  = null;
+
+  const btnSigninStart  = document.getElementById('btnSigninStart');
+  const btnSigninGet    = document.getElementById('btnSigninGet');
+  const btnSigninFinish = document.getElementById('btnSigninFinish');
+  const assertionPreview = document.getElementById('assertionPreview');
+  const assertionJson    = document.getElementById('assertionJson');
+
+  btnSigninStart.addEventListener('click', async () => {
+    signinOptions     = null;
+    assertionResponse = null;
+    assertionPreview.classList.remove('visible');
+    btnSigninGet.disabled    = true;
+    btnSigninFinish.disabled = true;
+
+    setBusy(btnSigninStart, 'Requesting…');
+    setStatus('busy', 'calling /signin/start');
+    log('─── signin ───────────────────────────');
+    log('POST /signin/start');
+
+    try {
+      const res = await fetch('/signin/start', { method: 'POST', credentials: 'include' });
+      log(`HTTP ${res.status} ${res.statusText}`, res.ok ? 'ok' : 'err');
+
+      if (!res.ok) {
+        log('Error: ' + await res.text(), 'err');
+        setStatus('err', 'signin start failed');
+        return;
+      }
+
+      const json = await res.json();
+      signinOptions = json;
+
+      log('Received publicKeyCredentialRequestOptions', 'ok');
+      log('challenge: ' + json.publicKey?.challenge?.slice(0, 24) + '…', 'data');
+      log('rpId: ' + json.publicKey?.rpId, 'data');
+      log('timeout: ' + json.publicKey?.timeout + 'ms', 'data');
+      log('userVerification: ' + json.publicKey?.userVerification, 'data');
+
+      btnSigninGet.disabled = false;
+      setStatus('ok', 'signin start OK — ready to get passkey');
+    } catch(e) {
+      log('Fetch failed: ' + e.message, 'err');
+      setStatus('err', 'network error');
+    } finally {
+      resetBtn(btnSigninStart, '1. /signin/start');
+    }
+  });
+
+  // ── Signin Step 2: navigator.credentials.get() ───────────────────────────
+
+  btnSigninGet.addEventListener('click', async () => {
+    if (!signinOptions) { log('No options — run signin start first', 'err'); return; }
+
+    setBusy(btnSigninGet, 'Waiting for authenticator…');
+    setStatus('busy', 'waiting for authenticator');
+    log('Calling navigator.credentials.get()');
+    log('Interact with your authenticator…', 'warn');
+
+    try {
+      const opts = JSON.parse(JSON.stringify(signinOptions));
+      opts.publicKey.challenge = b64urlToBuffer(opts.publicKey.challenge);
+      if (opts.publicKey.allowCredentials)
+        opts.publicKey.allowCredentials = opts.publicKey.allowCredentials.map(c => ({ ...c, id: b64urlToBuffer(c.id) }));
+
+      const cred = await navigator.credentials.get(opts);
+
+      log('Assertion received', 'ok');
+      log('id: ' + cred.id, 'data');
+      log('type: ' + cred.type, 'data');
+      log('authenticatorAttachment: ' + cred.authenticatorAttachment, 'data');
+
+      assertionResponse = {
+        id:    cred.id,
+        type:  cred.type,
+        rawId: bufferToB64url(cred.rawId),
+        response: {
+          clientDataJSON:    bufferToB64url(cred.response.clientDataJSON),
+          authenticatorData: bufferToB64url(cred.response.authenticatorData),
+          signature:         bufferToB64url(cred.response.signature),
+          userHandle:        cred.response.userHandle ? bufferToB64url(cred.response.userHandle) : null,
+        },
+        authenticatorAttachment: cred.authenticatorAttachment,
+      };
+
+      assertionJson.textContent = JSON.stringify(assertionResponse, null, 2);
+      assertionPreview.classList.add('visible');
+
+      btnSigninFinish.disabled = false;
+      setStatus('ok', 'assertion ready — run finish');
+    } catch(e) {
+      if (e.name === 'NotAllowedError') {
+        log('Cancelled or timed out: ' + e.message, 'warn');
+        setStatus('warn', 'cancelled');
+      } else {
+        log(e.name + ': ' + e.message, 'err');
+        setStatus('err', 'get passkey failed');
+      }
+    } finally {
+      resetBtn(btnSigninGet, '2. Get Passkey');
+    }
+  });
+
+  // ── Signin Step 3: /signin/finish ────────────────────────────────────────
+
+  btnSigninFinish.addEventListener('click', async () => {
+    if (!assertionResponse) { log('No assertion — run get passkey first', 'err'); return; }
+
+    setBusy(btnSigninFinish, 'Sending…');
+    setStatus('busy', 'calling /signin/finish');
+    log('POST /signin/finish');
+
+    try {
+      const res = await fetch('/signin/finish', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assertionResponse),
+      });
+
+      log(`HTTP ${res.status} ${res.statusText}`, res.ok ? 'ok' : 'err');
+
+      if (res.ok) {
+        log('Sign-in complete ✓', 'ok');
+        log('Next: JWT issuance (TODO in your handler)', 'warn');
+        setStatus('ok', 'sign-in complete');
+        btnSigninGet.disabled    = true;
+        btnSigninFinish.disabled = true;
+        assertionPreview.classList.remove('visible');
+      } else {
+        log('Error: ' + await res.text(), 'err');
+        setStatus('err', 'signin finish failed');
+      }
+    } catch(e) {
+      log('Fetch failed: ' + e.message, 'err');
+      setStatus('err', 'network error');
+    } finally {
+      resetBtn(btnSigninFinish, '3. /signin/finish');
+    }
+  });
+</script>
+</body>
+</html>

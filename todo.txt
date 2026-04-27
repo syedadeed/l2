@@ -1,0 +1,5 @@
+middleware => cors, auth
+cleanup db code and main.go
+login flow
+jwt
+cookie permissions
