@@ -112,7 +112,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 	if err == redis.Nil {
 		http.Error(w, "Registration failed", http.StatusUnauthorized)
 		return
-	}else if err != nil {
+	} else if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -174,7 +174,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//TODO issue a JWT
-	
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -227,7 +227,7 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: passkeySigninCookieName, MaxAge: -1, Path: "/"})
 
 	sessionBytes, err := ah.cache.GetDel(r.Context(), cookie.Value).Result()
-	if err == redis.Nil{
+	if err == redis.Nil {
 		http.Error(w, "Login failed", http.StatusUnauthorized)
 		return
 	} else if err != nil {
