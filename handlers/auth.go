@@ -104,11 +104,15 @@ func (ah *AuthHandler) SignupStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(passkeySignupCookieName)
-	if err != nil {
+	cookies := r.CookiesNamed(passkeySignupCookieName)
+	if len(cookies) == 0 {
 		http.Error(w, "Missing session cookie", http.StatusUnauthorized)
 		return
+	}else if len(cookies) > 1{
+		http.Error(w, "Multiple session cookies found", http.StatusBadRequest)
+		return
 	}
+	cookie := cookies[0]
 	http.SetCookie(w, &http.Cookie{Name: passkeySignupCookieName, MaxAge: -1, Path: "/"})
 
 	sessionBytes, err := ah.cache.GetDel(r.Context(), cookie.Value).Result()
@@ -254,11 +258,15 @@ func (ah *AuthHandler) SigninStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(passkeySigninCookieName)
-	if err != nil {
+	cookies := r.CookiesNamed(passkeySigninCookieName)
+	if len(cookies) == 0 {
 		http.Error(w, "Missing session cookie", http.StatusUnauthorized)
 		return
+	}else if len(cookies) > 1{
+		http.Error(w, "Multiple session cookies found", http.StatusBadRequest)
+		return
 	}
+	cookie := cookies[0]
 	http.SetCookie(w, &http.Cookie{Name: passkeySigninCookieName, MaxAge: -1, Path: "/"})
 
 	sessionBytes, err := ah.cache.GetDel(r.Context(), cookie.Value).Result()
