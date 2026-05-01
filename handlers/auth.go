@@ -19,8 +19,6 @@ import (
 
 const passkeySignupCookieName = "passkey_signup_session"
 const passkeySigninCookieName = "passkey_signin_session"
-const accessTokenCookieName = "access_token"
-const refreshTokenCookieName = "refresh_token"
 
 type tempUser struct {
 	id       []byte
@@ -197,7 +195,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     accessTokenCookieName,
+		Name:     utils.AccessTokenCookieName,
 		Value:    accessTokenString,
 		Path:     "/",
 		MaxAge:   int(time.Until(accessTokenExpiresAt).Seconds()),
@@ -206,7 +204,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:     refreshTokenCookieName,
+		Name:     utils.RefreshTokenCookieName,
 		Value:    refreshTokenString,
 		Path:     "/",
 		MaxAge:   int(time.Until(refreshTokenExpiresAt).Seconds()),
@@ -346,7 +344,7 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     accessTokenCookieName,
+		Name:     utils.AccessTokenCookieName,
 		Value:    accessTokenString,
 		Path:     "/",
 		MaxAge:   int(time.Until(accessTokenExpiresAt).Seconds()),
@@ -355,7 +353,7 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:     refreshTokenCookieName,
+		Name:     utils.RefreshTokenCookieName,
 		Value:    refreshTokenString,
 		Path:     "/",
 		MaxAge:   int(time.Until(refreshTokenExpiresAt).Seconds()),
