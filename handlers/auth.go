@@ -108,7 +108,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 	if len(cookies) == 0 {
 		http.Error(w, "Missing session cookie", http.StatusUnauthorized)
 		return
-	}else if len(cookies) > 1{
+	} else if len(cookies) > 1 {
 		http.Error(w, "Multiple session cookies found", http.StatusBadRequest)
 		return
 	}
@@ -126,6 +126,11 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 
 	var session webauthn.SessionData
 	if err := json.Unmarshal([]byte(sessionBytes), &session); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	userId, err := uuid.FromBytes(session.UserID)
+	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -155,7 +160,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 	qtx := ah.queries.WithTx(tx)
 
 	err = qtx.AddUser(r.Context(), repository.AddUserParams{
-		ID:        uuid.UUID(session.UserID),
+		ID:        userId,
 		FirstName: "user",
 		LastName:  "user",
 		Username:  base64.RawURLEncoding.EncodeToString(session.UserID),
@@ -167,7 +172,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 
 	err = qtx.AddCredential(r.Context(), repository.AddCredentialParams{
 		ID:         cred.ID,
-		UserID:     uuid.UUID(session.UserID),
+		UserID:     userId,
 		Credential: *cred,
 	})
 	if err != nil {
@@ -180,19 +185,19 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessTokenString, accessTokenExpiresAt, err := utils.GenerateAccessToken(uuid.UUID(session.UserID).String())
-	if err != nil{
+	accessTokenString, accessTokenExpiresAt, err := utils.GenerateAccessToken(userId.String())
+	if err != nil {
 		http.Error(w, "Session creation failed", http.StatusInternalServerError)
 		return
 	}
 
-	refreshTokenId, refreshTokenExpiresAt := uuid.New(), time.Now().Add(30 * 24 * time.Hour)
+	refreshTokenId, refreshTokenExpiresAt := uuid.New(), time.Now().Add(30*24*time.Hour)
 	err = ah.queries.AddSession(r.Context(), repository.AddSessionParams{
 		SessionID: refreshTokenId,
-		UserID: uuid.UUID(session.UserID),
+		UserID:    userId,
 		ExpiresAt: refreshTokenExpiresAt,
 	})
-	if err != nil{
+	if err != nil {
 		http.Error(w, "Session creation failed", http.StatusInternalServerError)
 		return
 	}
@@ -263,7 +268,7 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 	if len(cookies) == 0 {
 		http.Error(w, "Missing session cookie", http.StatusUnauthorized)
 		return
-	}else if len(cookies) > 1{
+	} else if len(cookies) > 1 {
 		http.Error(w, "Multiple session cookies found", http.StatusBadRequest)
 		return
 	}
@@ -286,6 +291,10 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lookupUser := func(credId, userId []byte) (webauthn.User, error) {
+		if credId == nil || userId == nil || len(userId) != 16 {
+			return nil, errors.New("Invalid parameters")
+		}
+
 		exists, err := ah.queries.VerifyCredentialOwner(r.Context(), repository.VerifyCredentialOwnerParams{
 			UserID: uuid.UUID(userId),
 			CredID: credId,
@@ -320,6 +329,11 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Login failed", http.StatusUnauthorized)
 		return
 	}
+	userId, err := uuid.FromBytes(validatedUser.WebAuthnID())
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	err = ah.queries.UpdateCredential(r.Context(), repository.UpdateCredentialParams{
 		ID:         validatedCredential.ID,
@@ -330,19 +344,19 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessTokenString, accessTokenExpiresAt, err := utils.GenerateAccessToken(uuid.UUID(validatedUser.WebAuthnID()).String())
-	if err != nil{
+	accessTokenString, accessTokenExpiresAt, err := utils.GenerateAccessToken(userId.String())
+	if err != nil {
 		http.Error(w, "Session creation failed", http.StatusInternalServerError)
 		return
 	}
 
-	refreshTokenId, refreshTokenExpiresAt := uuid.New(), time.Now().Add(30 * 24 * time.Hour)
+	refreshTokenId, refreshTokenExpiresAt := uuid.New(), time.Now().Add(30*24*time.Hour)
 	err = ah.queries.AddSession(r.Context(), repository.AddSessionParams{
 		SessionID: refreshTokenId,
-		UserID: uuid.UUID(validatedUser.WebAuthnID()),
+		UserID:    userId,
 		ExpiresAt: refreshTokenExpiresAt,
 	})
-	if err != nil{
+	if err != nil {
 		http.Error(w, "Session creation failed", http.StatusInternalServerError)
 		return
 	}
