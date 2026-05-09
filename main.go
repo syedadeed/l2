@@ -73,9 +73,13 @@ func main() {
 	mux.Handle("POST /signin/start/", http.HandlerFunc(authHandler.SigninStart))
 	mux.Handle("POST /signin/finish/", http.HandlerFunc(authHandler.SigninFinish))
 
+	mdw, err := middleware.NewMiddleware(repository.New(pool))
+	if err != nil {
+		panic(err)
+	}
 	server := &http.Server{
 		Addr:              ":8080",
-		Handler:           chainMiddlewares(mux, middleware.Logging),
+		Handler:           chainMiddlewares(mux, mdw.Logging),
 		ReadTimeout:       5 * time.Second,
 		ReadHeaderTimeout: 2 * time.Second,
 		WriteTimeout:      10 * time.Second,

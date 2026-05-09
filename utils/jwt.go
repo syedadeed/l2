@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 var symmetricKey = []byte{36, 251, 226, 103, 101, 83, 92, 244, 166, 20, 188, 81, 100, 89, 128, 29, 208, 59, 89, 176, 116, 214, 116, 169, 207, 0, 153, 82, 203, 156, 196, 247}
@@ -21,4 +22,8 @@ func GenerateAccessToken(userId string) (accessTokenString string, accessTokenEx
 		return
 	}
 	return
+}
+
+func VerifyAccessToken(tokenString string) (userId uuid.UUID, err error) {
+	return uuid.New(), nil
 }

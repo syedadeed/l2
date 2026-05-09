@@ -14,5 +14,6 @@ CREATE TABLE passkey_credentials (
 CREATE TABLE sessions (
     id            UUID        PRIMARY KEY,
     user_id       UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    expires_at    TIMESTAMPTZ NOT NULL
+    expires_at    TIMESTAMPTZ NOT NULL,
+    is_superseded BOOLEAN     NOT NULL DEFAULT FALSE
 );

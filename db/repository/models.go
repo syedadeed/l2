@@ -18,9 +18,10 @@ type PasskeyCredential struct {
 }
 
 type Session struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID           uuid.UUID `json:"id"`
+	UserID       uuid.UUID `json:"user_id"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	IsSuperseded bool      `json:"is_superseded"`
 }
 
 type User struct {
