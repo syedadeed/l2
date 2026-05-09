@@ -19,6 +19,8 @@ import (
 
 const passkeySignupCookieName = "passkey_signup_session"
 const passkeySigninCookieName = "passkey_signin_session"
+const AccessTokenCookieName = "access_token"
+const RefreshTokenCookieName = "refresh_token"
 
 type tempUser struct {
 	id       []byte
@@ -178,14 +180,15 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessTokenString, refreshTokenString, refreshTokenId, refreshTokenExpiresAt, accessTokenExpiresAt, err := utils.GenerateTokenPair(uuid.UUID(session.UserID).String())
+	accessTokenString, accessTokenExpiresAt, err := utils.GenerateAccessToken(uuid.UUID(session.UserID).String())
 	if err != nil{
 		http.Error(w, "Session creation failed", http.StatusInternalServerError)
 		return
 	}
 
-	err = ah.queries.AddRefreshToken(r.Context(), repository.AddRefreshTokenParams{
-		JwtID: refreshTokenId,
+	refreshTokenId, refreshTokenExpiresAt := uuid.New(), time.Now().Add(30 * 24 * time.Hour)
+	err = ah.queries.AddSession(r.Context(), repository.AddSessionParams{
+		SessionID: refreshTokenId,
 		UserID: uuid.UUID(session.UserID),
 		ExpiresAt: refreshTokenExpiresAt,
 	})
@@ -195,7 +198,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     utils.AccessTokenCookieName,
+		Name:     AccessTokenCookieName,
 		Value:    accessTokenString,
 		Path:     "/",
 		MaxAge:   int(time.Until(accessTokenExpiresAt).Seconds()),
@@ -204,8 +207,8 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:     utils.RefreshTokenCookieName,
-		Value:    refreshTokenString,
+		Name:     RefreshTokenCookieName,
+		Value:    refreshTokenId.String(),
 		Path:     "/",
 		MaxAge:   int(time.Until(refreshTokenExpiresAt).Seconds()),
 		HttpOnly: true,
@@ -327,14 +330,15 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessTokenString, refreshTokenString, refreshTokenId, refreshTokenExpiresAt, accessTokenExpiresAt, err := utils.GenerateTokenPair(uuid.UUID(validatedUser.WebAuthnID()).String())
+	accessTokenString, accessTokenExpiresAt, err := utils.GenerateAccessToken(uuid.UUID(validatedUser.WebAuthnID()).String())
 	if err != nil{
 		http.Error(w, "Session creation failed", http.StatusInternalServerError)
 		return
 	}
 
-	err = ah.queries.AddRefreshToken(r.Context(), repository.AddRefreshTokenParams{
-		JwtID: refreshTokenId,
+	refreshTokenId, refreshTokenExpiresAt := uuid.New(), time.Now().Add(30 * 24 * time.Hour)
+	err = ah.queries.AddSession(r.Context(), repository.AddSessionParams{
+		SessionID: refreshTokenId,
 		UserID: uuid.UUID(validatedUser.WebAuthnID()),
 		ExpiresAt: refreshTokenExpiresAt,
 	})
@@ -344,7 +348,7 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     utils.AccessTokenCookieName,
+		Name:     AccessTokenCookieName,
 		Value:    accessTokenString,
 		Path:     "/",
 		MaxAge:   int(time.Until(accessTokenExpiresAt).Seconds()),
@@ -353,8 +357,8 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:     utils.RefreshTokenCookieName,
-		Value:    refreshTokenString,
+		Name:     RefreshTokenCookieName,
+		Value:    refreshTokenId.String(),
 		Path:     "/",
 		MaxAge:   int(time.Until(refreshTokenExpiresAt).Seconds()),
 		HttpOnly: true,

@@ -28,18 +28,18 @@ func (q *Queries) AddCredential(ctx context.Context, arg AddCredentialParams) er
 	return err
 }
 
-const addRefreshToken = `-- name: AddRefreshToken :exec
+const addSession = `-- name: AddSession :exec
 INSERT INTO sessions(id, user_id, expires_at) VALUES($1, $2, $3)
 `
 
-type AddRefreshTokenParams struct {
-	JwtID     uuid.UUID `json:"jwt_id"`
+type AddSessionParams struct {
+	SessionID uuid.UUID `json:"session_id"`
 	UserID    uuid.UUID `json:"user_id"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-func (q *Queries) AddRefreshToken(ctx context.Context, arg AddRefreshTokenParams) error {
-	_, err := q.db.Exec(ctx, addRefreshToken, arg.JwtID, arg.UserID, arg.ExpiresAt)
+func (q *Queries) AddSession(ctx context.Context, arg AddSessionParams) error {
+	_, err := q.db.Exec(ctx, addSession, arg.SessionID, arg.UserID, arg.ExpiresAt)
 	return err
 }
 

@@ -1,3 +1,13 @@
+Authentication
+    Verifying a users identity, from the users perspective it can be a login flow
+    from an api endpoint perspective it can be verifying a jwt
+Authorization(https://github.com/authzed/authzed-go)
+    Responsible for checking wether the user is allowed to perform a certain action
+
+One must perform both Authentication and Authorization
+first Authorization at end point level then pass the user uuid in request context and pass it to Authorization
+Authorization verifies wether the user(UUID) is allowed to make that specific request
+
 middleware => cors, csrf, auth, request body size limit
 cleanup db code and main.go
 jwt
