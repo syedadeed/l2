@@ -15,7 +15,6 @@ type PasskeyCredential struct {
 	ID         []byte              `json:"id"`
 	UserID     uuid.UUID           `json:"user_id"`
 	Credential webauthn.Credential `json:"credential"`
-	CreatedAt  time.Time           `json:"created_at"`
 }
 
 type Session struct {

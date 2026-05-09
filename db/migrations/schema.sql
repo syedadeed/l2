@@ -8,8 +8,7 @@ CREATE TABLE users (
 CREATE TABLE passkey_credentials (
     id            BYTEA       PRIMARY KEY,
     user_id       UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    credential    JSONB       NOT NULL UNIQUE,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    credential    JSONB       NOT NULL UNIQUE
 );
 
 CREATE TABLE sessions (
