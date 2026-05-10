@@ -65,7 +65,7 @@ func (q *Queries) AddUser(ctx context.Context, arg AddUserParams) error {
 }
 
 const consumeSession = `-- name: ConsumeSession :one
-UPDATE sessions SET is_superseded = TRUE, expires_at = NOW() + INTERVAL '30 seconds' WHERE id = $1 AND expires_at >= NOW() AND is_superseded = FALSE RETURNING id, user_id, expires_at, is_superseded
+UPDATE sessions SET is_superseded = TRUE, expires_at = NOW() + INTERVAL '5 seconds' WHERE id = $1 AND expires_at >= NOW() AND is_superseded = FALSE RETURNING id, user_id, expires_at, is_superseded
 `
 
 func (q *Queries) ConsumeSession(ctx context.Context, id uuid.UUID) (Session, error) {

@@ -23,7 +23,7 @@ INSERT INTO sessions(id, user_id, expires_at) VALUES(sqlc.arg(session_id), sqlc.
 DELETE FROM sessions WHERE id = $1;
 
 -- name: ConsumeSession :one
-UPDATE sessions SET is_superseded = TRUE, expires_at = NOW() + INTERVAL '30 seconds' WHERE id = $1 AND expires_at >= NOW() AND is_superseded = FALSE RETURNING *;
+UPDATE sessions SET is_superseded = TRUE, expires_at = NOW() + INTERVAL '5 seconds' WHERE id = $1 AND expires_at >= NOW() AND is_superseded = FALSE RETURNING *;
 
 -- name: GetSupersededSession :one
 SELECT * FROM sessions WHERE id = $1 AND expires_at >= NOW() AND is_superseded = TRUE;
