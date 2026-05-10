@@ -1,4 +1,4 @@
+Authorization via spicedb
 middleware => cors, csrf, request body size limit
-cleanup db code and main.go
 cookie permissions csrf protection
-signout => removing cookies + db removal + grace period superseded token removals??
+cleanup db code and main.go

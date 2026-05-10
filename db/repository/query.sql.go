@@ -64,12 +64,12 @@ func (q *Queries) AddUser(ctx context.Context, arg AddUserParams) error {
 	return err
 }
 
-const consumeSessionById = `-- name: ConsumeSessionById :one
+const consumeSession = `-- name: ConsumeSession :one
 UPDATE sessions SET is_superseded = TRUE, expires_at = NOW() + INTERVAL '30 seconds' WHERE id = $1 AND expires_at >= NOW() AND is_superseded = FALSE RETURNING id, user_id, expires_at, is_superseded
 `
 
-func (q *Queries) ConsumeSessionById(ctx context.Context, id uuid.UUID) (Session, error) {
-	row := q.db.QueryRow(ctx, consumeSessionById, id)
+func (q *Queries) ConsumeSession(ctx context.Context, id uuid.UUID) (Session, error) {
+	row := q.db.QueryRow(ctx, consumeSession, id)
 	var i Session
 	err := row.Scan(
 		&i.ID,
@@ -78,6 +78,15 @@ func (q *Queries) ConsumeSessionById(ctx context.Context, id uuid.UUID) (Session
 		&i.IsSuperseded,
 	)
 	return i, err
+}
+
+const deleteSession = `-- name: DeleteSession :exec
+DELETE FROM sessions WHERE id = $1
+`
+
+func (q *Queries) DeleteSession(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSession, id)
+	return err
 }
 
 const getCredentialsByUser = `-- name: GetCredentialsByUser :many
@@ -104,12 +113,12 @@ func (q *Queries) GetCredentialsByUser(ctx context.Context, userID uuid.UUID) ([
 	return items, nil
 }
 
-const getSupersededSessionById = `-- name: GetSupersededSessionById :one
+const getSupersededSession = `-- name: GetSupersededSession :one
 SELECT id, user_id, expires_at, is_superseded FROM sessions WHERE id = $1 AND expires_at >= NOW() AND is_superseded = TRUE
 `
 
-func (q *Queries) GetSupersededSessionById(ctx context.Context, id uuid.UUID) (Session, error) {
-	row := q.db.QueryRow(ctx, getSupersededSessionById, id)
+func (q *Queries) GetSupersededSession(ctx context.Context, id uuid.UUID) (Session, error) {
+	row := q.db.QueryRow(ctx, getSupersededSession, id)
 	var i Session
 	err := row.Scan(
 		&i.ID,

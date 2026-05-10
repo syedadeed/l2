@@ -220,7 +220,7 @@ func (ah *AuthHandler) SignupFinish(w http.ResponseWriter, r *http.Request) {
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (ah *AuthHandler) SigninStart(w http.ResponseWriter, r *http.Request) {
@@ -379,5 +379,32 @@ func (ah *AuthHandler) SigninFinish(w http.ResponseWriter, r *http.Request) {
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (ah *AuthHandler) Signout(w http.ResponseWriter, r *http.Request) {
+	refreshCookies := r.CookiesNamed(RefreshTokenCookieName)
+	if len(refreshCookies) > 1 {
+		http.Error(w, "Multiple refresh token cookies provided", http.StatusBadRequest)
+		return
+	} else if len(refreshCookies) == 0 {
+		http.SetCookie(w, &http.Cookie{Name: AccessTokenCookieName, MaxAge: -1, Path: "/"})
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	sessionId, err := uuid.Parse(refreshCookies[0].Value)
+	if err != nil {
+		http.Error(w, "invalid refresh token", http.StatusBadRequest)
+		return
+	}
+
+	if err := ah.queries.DeleteSession(r.Context(), sessionId); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{Name: AccessTokenCookieName, MaxAge: -1, Path: "/"})
+	http.SetCookie(w, &http.Cookie{Name: RefreshTokenCookieName, MaxAge: -1, Path: "/"})
+	w.WriteHeader(http.StatusNoContent)
 }

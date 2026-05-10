@@ -70,6 +70,7 @@ func main() {
 	mux.Handle("POST /signup/finish/", http.HandlerFunc(authHandler.SignupFinish))
 	mux.Handle("POST /signin/start/", http.HandlerFunc(authHandler.SigninStart))
 	mux.Handle("POST /signin/finish/", http.HandlerFunc(authHandler.SigninFinish))
+	mux.Handle("POST /signout/", http.HandlerFunc(authHandler.Signout))
 
 	server := &http.Server{
 		Addr:              ":8080",

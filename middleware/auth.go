@@ -44,9 +44,9 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 				return errors.New("Invalid refresh token cookie provided")
 			}
 
-			session, err := m.queries.ConsumeSessionById(r.Context(), sessionId)
+			session, err := m.queries.ConsumeSession(r.Context(), sessionId)
 			if errors.Is(err, pgx.ErrNoRows) {
-				session, err := m.queries.GetSupersededSessionById(r.Context(), sessionId)
+				session, err := m.queries.GetSupersededSession(r.Context(), sessionId)
 				if err != nil {
 					http.SetCookie(w, &http.Cookie{Name: AccessTokenCookieName, MaxAge: -1, Path: "/"})
 					http.SetCookie(w, &http.Cookie{Name: RefreshTokenCookieName, MaxAge: -1, Path: "/"})
