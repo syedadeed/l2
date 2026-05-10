@@ -1,39 +1,4 @@
-Authentication
-    Verifying a users identity, from the users perspective it can be a login flow
-    from an api endpoint perspective it can be verifying a jwt
-Authorization(https://github.com/authzed/authzed-go)
-    Responsible for checking wether the user is allowed to perform a certain action
-
-One must perform both Authentication and Authorization
-first Authorization at end point level then pass the user uuid in request context and pass it to Authorization
-Authorization verifies wether the user(UUID) is allowed to make that specific request
-
-middleware => cors, csrf, auth, request body size limit
+middleware => cors, csrf, request body size limit
 cleanup db code and main.go
-jwt
 cookie permissions csrf protection
-signout
-
-JWT
-    iss(Issuer => who created the token) => app name(string) or a URI
-    sub(Subject => who the token is about) => user UUID
-    aud(Audience => who should accept the token) => list of names(string) or URI, usually not necessary unless you have microservices
-    exp(Expiration Time => when does this token stop being valid) => seconds since Unix epoch
-    nbf(Not Before => don't accept before this time) => seconds since Unix epoch, usually not necessary
-    iat(Issued At => time at which the JWT was issued) => seconds since Unix epoch
-        iat must be between nbf and exp to be ensure the validity of the jwt
-    jti(JWT ID => unique ID for the token itself) => UUID, usually not necessary
-
-Auth middleware job
-    if access token is expired or not present
-        fallback to refresh token
-    else
-        if access token verification fails
-            tell client 
-when access token expires do a db lookup to verify refresh token of client is from a valid session
-if so revoke the refresh token
-alot new access and refresh tokens and make sure to save the new refresh token in the db
-when user logs out remove the refresh token
-the refresh token needs to have jti field
-if refresh token turns out to be expired make sure to check its existence in db and remove it there as well
-also a cron job would be needed to remove expired token anyways for the name of db maintainance
+signout => removing cookies + db removal + grace period superseded token removals??
