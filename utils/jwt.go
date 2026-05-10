@@ -50,12 +50,12 @@ func VerifyAccessToken(tokenString string) (uuid.UUID, error) {
 	}
 
 	sub, ok := accessToken.Subject()
-	if !ok{
+	if !ok {
 		return uuid.Nil, errors.New("missing subject claim")
 	}
 
 	userId, err := uuid.Parse(sub)
-	if err != nil{
+	if err != nil {
 		return uuid.Nil, err
 	}
 
