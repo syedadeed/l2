@@ -1,4 +1,5 @@
 Authorization via spicedb
-middleware => cors, csrf, request body size limit
-cookie permissions csrf protection
-cleanup db code and main.go
+setup migrations
+setup env vars
+cookie security
+cors middleware
