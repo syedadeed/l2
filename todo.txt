@@ -3,3 +3,90 @@ setup migrations
 setup env vars
 cookie security
 cors middleware
+
+SAATH
+the website would have two kinds of users
+    A small buissness can
+        make a profile,
+        make posts,
+        ask for donations
+        follow other buissness
+        message other buissness,
+        their profile would also show buissness reviews made by a user,
+        a trust score that is based upon multiple factors
+
+    normal user
+        would get recommendations of small buissness near them
+        they would be able to search for buissness
+        get a feed showing the different posts made by the buissness they follow
+        they can also make donations
+        message buissness
+        users can post reviews of buissness
+        they would also have a basic profile of their own
+
+https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3 with rustfs
+https://docs.aws.amazon.com/code-library/latest/ug/go_2_s3_code_examples.html
+####################################Buissness###############################################
+CREATE TABLE business_users (
+    id               UUID  PRIMARY KEY,
+    username         TEXT  NOT NULL UNIQUE CHECK(username ~ '^[A-Za-z0-9_-]+$'),
+    name             TEXT,
+    upi_id           TEXT  CHECK(upi_id ~ '^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+$'),
+    gst_number       TEXT  CHECK(gst_number ~ '^[A-Z0-9]{15}$'),
+    country          TEXT,
+    state            TEXT,
+    city             TEXT,
+    postal_code      TEXT,
+    street_address   TEXT,
+    extended_address TEXT,
+    location         POINT CHECK(location[0] BETWEEN -180 AND 180 AND location[1] BETWEEN -90 AND 90),
+    banner_key       UUID,
+    avatar_key       UUID,
+    tagline          TEXT,
+    bio              TEXT,
+);
+
+CREATE validate_location_sync() RETURNS TRIGGER LANGUAGE PLPGSQL AS
+$$
+BEGIN
+    IF (NEW.country IS DISTINCT FROM OLD.country OR
+        NEW.state IS DISTINCT FROM OLD.state OR
+        NEW.city IS DISTINCT FROM OLD.city OR
+        NEW.postal_code IS DISTINCT FROM OLD.postal_code OR
+        NEW.street_address IS DISTINCT FROM OLD.street_address)
+       <>
+       (NEW.location IS DISTINCT FROM OLD.location)
+    THEN
+        RAISE EXCEPTION 'location and address fields must be updated together';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER business_users_location_sync
+BEFORE UPDATE ON business_users
+FOR EACH ROW
+EXECUTE FUNCTION validate_location_sync();
+
+FIGURE OUT IF YOU SHOULD SET EXPLICT UPPER BOUND TO TEXT OR NOT
+
+Phone
+Email
+Website URL
+Insta link
+Twitter link
+Youtube link
+Facebook link
+Tags => list containing predefined Enum
+Is Active
+Created At
+
+Buissness hour table
+UUID
+Buissness UUID foregin key
+Day of week
+Open Time
+Close Time
+Is Closed
+############################################################################################
