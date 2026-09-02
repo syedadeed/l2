@@ -1,4 +1,3 @@
-hi adeed bhai
 Authorization via spicedb
 setup migrations
 setup env vars
