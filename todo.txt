@@ -1,3 +1,4 @@
+upgrade to go 1.27 and change webauthn.WithExtensions(map[string]any{"credProps": true}) with webauthn.WithExtensions(webauthn.WithExtensionCredProps())
 Authorization via spicedb
 setup migrations
 setup env vars
