@@ -63,7 +63,7 @@ func (ah *AuthHandler) SignupStart(w http.ResponseWriter, r *http.Request) {
 		newTempUser(),
 		protocol.MediationDefault,
 		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
-		webauthn.WithExtensions(map[string]any{"credProps": true}),
+		webauthn.WithExtensions(webauthn.WithExtensionCredProps()),
 	)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
