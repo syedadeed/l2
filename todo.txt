@@ -27,66 +27,54 @@ the website would have two kinds of users
 https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/s3 with rustfs
 https://docs.aws.amazon.com/code-library/latest/ug/go_2_s3_code_examples.html
 ####################################Buissness###############################################
+Rule of thumb when creating schemas only put check constrains on internal entities(application owned ex username) or to establish a logical enforcement(like open time < close time); dont put check constrains on external entities like email etc
+
+profile
+profile should have reviews associated with it(A table for reviews associated with a Buissness)
+following
+posting
+messaging
+donations
+
+CREATE TYPE BUSINESS_TAG AS ENUM (...);
+
 CREATE TABLE business_users (
-    id               UUID  PRIMARY KEY,
-    username         TEXT  NOT NULL UNIQUE CHECK(username ~ '^[A-Za-z0-9_-]+$'),
-    name             TEXT,
-    upi_id           TEXT  CHECK(upi_id ~ '^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+$'),
-    gst_number       TEXT  CHECK(gst_number ~ '^[A-Z0-9]{15}$'),
-    country          TEXT,
-    state            TEXT,
-    city             TEXT,
-    postal_code      TEXT,
-    street_address   TEXT,
-    extended_address TEXT,
-    location         POINT CHECK(location[0] BETWEEN -180 AND 180 AND location[1] BETWEEN -90 AND 90),
-    banner_key       UUID,
-    avatar_key       UUID,
-    tagline          TEXT,
-    bio              TEXT,
+    id                  UUID            PRIMARY KEY,
+    username            TEXT            NOT NULL UNIQUE CHECK(username ~ '^[A-Za-z0-9_-]+$'),
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    is_active           BOOLEAN         NOT NULL DEFAULT TRUE,
+    is_verified         BOOLEAN         NOT NULL DEFAULT FALSE,
+    name                TEXT,
+    upi_id              TEXT,
+    country             TEXT,
+    state               TEXT,
+    city                TEXT,
+    postal_code         TEXT,
+    street_address      TEXT,
+    extended_address    TEXT,
+    location            POINT,
+    timezone            TEXT,
+    banner_key          UUID,
+    avatar_key          UUID,
+    tagline             TEXT,
+    bio                 TEXT,
+    phone_country_code  TEXT,
+    phone_number        TEXT,
+    email               TEXT,
+    website_url         TEXT,
+    instagram_url       TEXT,
+    x_url               TEXT,
+    youtube_url         TEXT,
+    facebook_url        TEXT,
+    tags                BUSINESS_TAG[]  NOT NULL DEFAULT ARRAY[]::business_tag[]
 );
 
-CREATE validate_location_sync() RETURNS TRIGGER LANGUAGE PLPGSQL AS
-$$
-BEGIN
-    IF (NEW.country IS DISTINCT FROM OLD.country OR
-        NEW.state IS DISTINCT FROM OLD.state OR
-        NEW.city IS DISTINCT FROM OLD.city OR
-        NEW.postal_code IS DISTINCT FROM OLD.postal_code OR
-        NEW.street_address IS DISTINCT FROM OLD.street_address)
-       <>
-       (NEW.location IS DISTINCT FROM OLD.location)
-    THEN
-        RAISE EXCEPTION 'location and address fields must be updated together';
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER business_users_location_sync
-BEFORE UPDATE ON business_users
-FOR EACH ROW
-EXECUTE FUNCTION validate_location_sync();
-
-FIGURE OUT IF YOU SHOULD SET EXPLICT UPPER BOUND TO TEXT OR NOT
-
-Phone
-Email
-Website URL
-Insta link
-Twitter link
-Youtube link
-Facebook link
-Tags => list containing predefined Enum
-Is Active
-Created At
-
-Buissness hour table
-UUID
-Buissness UUID foregin key
-Day of week
-Open Time
-Close Time
-Is Closed
+CREATE TABLE business_hours (
+    id          UUID PRIMARY KEY,
+    business_id UUID NOT NULL REFERENCES business_users(id) ON DELETE CASCADE,
+    day_range   INT4RANGE NOT NULL CHECK (NOT isempty(day_range) AND day_range <@ int4range(0, 7)),
+    open_time   TIME NOT NULL,
+    close_time  TIME NOT NULL,
+    CHECK (open_time < close_time)
+);
 ############################################################################################
